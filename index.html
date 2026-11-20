@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>肉鸽割草 · 波次生存</title>
 <style>
 :root{
@@ -21,23 +21,44 @@ body{
   color:var(--text);
   font-family:"Segoe UI","Microsoft YaHei","PingFang SC",system-ui,sans-serif;
   display:flex;align-items:center;justify-content:center;
-  min-height:100vh;overflow:hidden;
+  min-height:100vh;
+  min-height:100dvh;
+  overflow:hidden;
+  overscroll-behavior:none;
   user-select:none;
+  -webkit-user-select:none;
+  -webkit-tap-highlight-color:transparent;
 }
 #game-wrap{
   position:relative;
   width:min(800px,96vw,calc(92vh * 4 / 3));
+  width:min(800px,96vw,calc(92dvh * 4 / 3));
   aspect-ratio:4/3;
   border-radius:16px;
   overflow:hidden;
   box-shadow:0 30px 80px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.07),0 0 60px rgba(60,120,255,.12);
 }
-canvas{display:block;width:100%;height:100%;background:#12161f}
+canvas{display:block;width:100%;height:100%;background:#12161f;touch-action:none;-webkit-tap-highlight-color:transparent}
 .topbar{position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:60}
 .topbar button{
   padding:5px 10px;font-size:12px;border-radius:8px;
   background:rgba(20,26,38,.85);backdrop-filter:blur(4px);
 }
+.pause-btn{
+  position:absolute;right:12px;bottom:28px;z-index:15;
+  width:46px;height:46px;padding:0;border-radius:50%;
+  display:none;align-items:center;justify-content:center;
+  font-size:18px;line-height:1;
+  background:rgba(18,24,36,.55);
+  border:1px solid rgba(160,190,255,.35);
+  backdrop-filter:blur(3px);
+  opacity:.72;
+}
+.pause-btn.show{display:flex}
+.pause-btn:hover{opacity:1}
+.menu-utils{display:none;gap:8px;justify-content:center;flex-wrap:wrap;margin:0 auto 14px;max-width:340px}
+.menu-utils button{font-size:12px;padding:7px 12px}
+.rotate-hint{display:none;margin-top:10px;font-size:12px;color:#ffd166}
 button{
   font-family:inherit;font-size:14px;color:var(--text);
   background:#222b3c;border:1px solid rgba(140,170,230,.22);
@@ -51,14 +72,17 @@ button.primary:hover:not(:disabled){background:linear-gradient(180deg,#5a9bff,#3
 button.danger{background:linear-gradient(180deg,#e04a68,#b62f4c);border-color:#ff6b86}
 button.ghost{background:transparent}
 #overlay{
-  position:absolute;inset:0;z-index:20;
+  position:fixed;inset:0;z-index:40;
   display:flex;align-items:center;justify-content:center;
-  padding:16px;background:rgba(6,9,14,.8);
+  padding:14px;
+  padding-top:max(14px, env(safe-area-inset-top));
+  padding-bottom:max(14px, env(safe-area-inset-bottom));
+  background:rgba(6,9,14,.82);
   backdrop-filter:blur(7px);overflow-y:auto;
 }
 #overlay.hidden{display:none}
 .panel{
-  width:min(100%,700px);max-height:100%;overflow-y:auto;
+  width:min(100%,700px);max-height:calc(100vh - 28px);max-height:calc(100dvh - 28px);overflow-y:auto;
   background:linear-gradient(180deg,rgba(28,35,50,.97),rgba(16,20,29,.99));
   border:1px solid var(--line);border-radius:18px;
   padding:22px 24px;box-shadow:0 24px 60px rgba(0,0,0,.55);
@@ -189,6 +213,22 @@ kbd{
   box-shadow:0 10px 30px rgba(0,0,0,.4);
 }
 #toast.show{opacity:1;transform:translate(-50%,0)}
+@media (max-width:700px), (max-height:520px), (pointer:coarse){
+  .topbar{display:none}
+  .menu-utils{display:flex}
+  #game-wrap{
+    width:min(100vw, calc(100vh * 4 / 3));
+    width:min(100vw, calc(100dvh * 4 / 3));
+    border-radius:0;
+    box-shadow:none;
+  }
+  .panel{padding:18px 16px;border-radius:14px}
+  .menu-panel h1{font-size:28px}
+  .btn-row button{flex:1 1 auto}
+}
+@media (orientation:portrait) and (pointer:coarse){
+  .rotate-hint{display:block}
+}
 @media (max-width:640px){
   .menu-panel h1{font-size:26px}
   .offer-grid{grid-template-columns:1fr}
@@ -205,8 +245,9 @@ kbd{
 </div>
 <div id="game-wrap">
   <canvas id="game" width="800" height="600"></canvas>
-  <div id="overlay"></div>
+  <button id="pauseBtn" class="pause-btn" aria-label="暂停" title="暂停">⏸</button>
 </div>
+<div id="overlay"></div>
 <div id="toast"></div>
 <script>
 /* ============================================================
@@ -424,6 +465,20 @@ let lastT = 0;
 let toastTimer = null;
 const keys = Object.create(null);
 
+// 浮动虚拟摇杆：按下哪里，哪里就是摇杆中心
+const stick = {
+  active: false,
+  id: null,
+  ox: 0, oy: 0,      // 摇杆中心（画布坐标）
+  dx: 0, dy: 0,      // 摇杆偏移（已限制在半径内）
+  nx: 0, ny: 0,      // 归一化方向（长度 = mag）
+  mag: 0,            // 0~1 推杆幅度
+  radius: 60,        // 半径（画布坐标，按下时按屏幕缩放换算）
+  alpha: 0           // 透明度动画
+};
+const pauseBtn = document.getElementById('pauseBtn');
+let pauseBtnShown = false;
+
 function toast(msg){
   const el = document.getElementById('toast');
   el.textContent = msg;
@@ -432,10 +487,12 @@ function toast(msg){
   toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 1800);
 }
 function hideOverlay(){
+  resetStick();
   overlay.classList.add('hidden');
   overlay.innerHTML = '';
 }
 function showOverlay(html){
+  resetStick();
   overlay.innerHTML = html;
   overlay.classList.remove('hidden');
 }
@@ -467,10 +524,17 @@ function showMenu(){
         '<button class="primary" onclick="openCharSelect()">开始游戏</button>' +
         '<button onclick="openMeta()">解锁商店</button>' +
       '</div>' +
+      '<div class="menu-utils">' +
+        '<button onclick="saveGame()">保存进度</button>' +
+        '<button onclick="loadGame()">读取存档</button>' +
+        '<button onclick="clearSave()">清空存档</button>' +
+      '</div>' +
       '<div class="help">' +
-        '<p>移动：<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 或 <kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> · 暂停：<kbd>Esc</kbd></p>' +
+        '<p>电脑：<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / <kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> 移动 · <kbd>Esc</kbd> 暂停</p>' +
+        '<p>手机：在游戏画面任意位置按住并拖动即可移动，右下角 ⏸ 暂停。</p>' +
         '<p>武器会自动瞄准并攻击最近的敌人；最终波 Boss 在射程内时优先锁定它。捡起绿色材料，在波次间购买武器与强化。</p>' +
       '</div>' +
+      '<p class="rotate-hint">📱 建议横屏游玩，视野更宽</p>' +
       historyHtml() +
     '</div>'
   );
@@ -1333,22 +1397,34 @@ function update(dt){
     }
   }
 
-  // 移动
-  let mx = 0, my = 0;
-  if(keys['w'] || keys['arrowup']) my--;
-  if(keys['s'] || keys['arrowdown']) my++;
-  if(keys['a'] || keys['arrowleft']) mx--;
-  if(keys['d'] || keys['arrowright']) mx++;
-  if(mx !== 0 || my !== 0){
-    const len = Math.hypot(mx, my);
+  // 移动：虚拟摇杆优先，否则键盘
+  let mx = 0, my = 0, moveMag = 0;
+  if(stick.active && stick.mag > 0.001){
+    mx = stick.nx;
+    my = stick.ny;
+    const len = Math.hypot(mx, my) || 1;
     mx /= len; my /= len;
-    p.x += mx * p.speed * dt;
-    p.y += my * p.speed * dt;
+    moveMag = stick.mag;
+  } else if(!stick.active){
+    if(keys['w'] || keys['arrowup']) my--;
+    if(keys['s'] || keys['arrowdown']) my++;
+    if(keys['a'] || keys['arrowleft']) mx--;
+    if(keys['d'] || keys['arrowright']) mx++;
+    if(mx !== 0 || my !== 0){
+      const len = Math.hypot(mx, my);
+      mx /= len; my /= len;
+      moveMag = 1;
+    }
+  }
+  if(moveMag > 0){
+    p.x += mx * p.speed * moveMag * dt;
+    p.y += my * p.speed * moveMag * dt;
     p.aim = Math.atan2(my, mx);
   }
   p.x = clamp(p.x, p.r, W - p.r);
   p.y = clamp(p.y, p.r, H - p.r);
   p.invuln = Math.max(0, p.invuln - dt);
+  stick.alpha += ((stick.active ? 1 : 0) - stick.alpha) * Math.min(1, dt * 16);
 
   // 刷怪
   r.spawnTimer -= dt;
@@ -1779,6 +1855,64 @@ function drawHud(){
   ctx.textBaseline = 'alphabetic';
 }
 
+function drawJoystick(){
+  if(stick.alpha <= 0.02) return;
+  const a = stick.alpha;
+  const R = stick.radius;
+  const kx = stick.ox + stick.dx;
+  const ky = stick.oy + stick.dy;
+
+  ctx.save();
+  // 半透明底盘
+  ctx.globalAlpha = 0.14 * a;
+  ctx.fillStyle = '#7fb2ff';
+  ctx.beginPath();
+  ctx.arc(stick.ox, stick.oy, R, 0, TAU);
+  ctx.fill();
+
+  ctx.globalAlpha = 0.38 * a;
+  ctx.strokeStyle = '#cfe3ff';
+  ctx.lineWidth = Math.max(1.5, R * 0.02);
+  ctx.beginPath();
+  ctx.arc(stick.ox, stick.oy, R, 0, TAU);
+  ctx.stroke();
+
+  // 中心点
+  ctx.globalAlpha = 0.22 * a;
+  ctx.fillStyle = '#cfe3ff';
+  ctx.beginPath();
+  ctx.arc(stick.ox, stick.oy, R * 0.10, 0, TAU);
+  ctx.fill();
+
+  // 方向线
+  ctx.globalAlpha = 0.20 * a;
+  ctx.strokeStyle = '#cfe3ff';
+  ctx.lineWidth = Math.max(1.5, R * 0.025);
+  ctx.beginPath();
+  ctx.moveTo(stick.ox, stick.oy);
+  ctx.lineTo(kx, ky);
+  ctx.stroke();
+
+  // 摇杆头
+  const kr = R * 0.34;
+  ctx.globalAlpha = 0.52 * a;
+  const g = ctx.createRadialGradient(kx - kr * 0.35, ky - kr * 0.35, kr * 0.15, kx, ky, kr);
+  g.addColorStop(0, 'rgba(255,255,255,0.95)');
+  g.addColorStop(1, 'rgba(110,170,255,0.30)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(kx, ky, kr, 0, TAU);
+  ctx.fill();
+
+  ctx.globalAlpha = 0.55 * a;
+  ctx.strokeStyle = 'rgba(230,242,255,0.9)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(kx, ky, kr, 0, TAU);
+  ctx.stroke();
+  ctx.restore();
+}
+
 function draw(){
   ctx.fillStyle = '#0b0f16';
   ctx.fillRect(0, 0, W, H);
@@ -1805,6 +1939,8 @@ function draw(){
   }
 
   ctx.restore();
+  // 摇杆不参与镜头震动，松手后随 alpha 淡出
+  if(run && state === 'running') drawJoystick();
 }
 
 /* ========================= 输入与主循环 ========================= */
@@ -1814,6 +1950,13 @@ function loop(now){
   lastT = now;
 
   if(state === 'running' && run) update(dt);
+
+  const showPause = state === 'running';
+  if(showPause !== pauseBtnShown){
+    pauseBtnShown = showPause;
+    pauseBtn.classList.toggle('show', showPause);
+  }
+
   draw();
   requestAnimationFrame(loop);
 }
@@ -1833,6 +1976,84 @@ window.addEventListener('blur', function(){
   for(const k in keys) keys[k] = false;
   if(state === 'running') togglePause();
 });
+
+/* ========================= 浮动触屏摇杆 ========================= */
+function canvasPoint(e){
+  const rect = canvas.getBoundingClientRect();
+  const sx = rect.width ? W / rect.width : 1;
+  const sy = rect.height ? H / rect.height : 1;
+  return {
+    x: (e.clientX - rect.left) * sx,
+    y: (e.clientY - rect.top) * sy,
+    rect: rect
+  };
+}
+function resetStick(){
+  stick.active = false;
+  stick.id = null;
+  stick.mag = 0;
+  stick.nx = 0;
+  stick.ny = 0;
+  stick.dx = 0;
+  stick.dy = 0;
+  stick.alpha = 0;
+}
+function stickDown(e){
+  if(state !== 'running' || !run) return;
+  if(e.pointerType === 'mouse' && e.button !== 0) return;
+  if(stick.active) return;
+  const pos = canvasPoint(e);
+  stick.active = true;
+  stick.id = e.pointerId;
+  stick.ox = pos.x;
+  stick.oy = pos.y;
+  stick.dx = 0;
+  stick.dy = 0;
+  stick.nx = 0;
+  stick.ny = 0;
+  stick.mag = 0;
+  // 让摇杆在屏幕上的视觉半径固定约 62px，不随画布缩放变小
+  stick.radius = Math.max(44, 62 * (W / (pos.rect.width || W)));
+  stick.alpha = 1;
+  try { canvas.setPointerCapture(e.pointerId); } catch(err) {}
+  e.preventDefault();
+}
+function stickMove(e){
+  if(!stick.active || e.pointerId !== stick.id) return;
+  const pos = canvasPoint(e);
+  let dx = pos.x - stick.ox;
+  let dy = pos.y - stick.oy;
+  const dist = Math.hypot(dx, dy);
+  const R = stick.radius;
+  if(dist > R){
+    dx = dx / dist * R;
+    dy = dy / dist * R;
+  }
+  stick.dx = dx;
+  stick.dy = dy;
+  stick.nx = dx / R;
+  stick.ny = dy / R;
+  const dead = R * 0.08;
+  stick.mag = dist <= dead ? 0 : Math.min(1, (dist - dead) / (R - dead));
+  e.preventDefault();
+}
+function stickUp(e){
+  if(!stick.active) return;
+  if(e && e.pointerId !== undefined && e.pointerId !== stick.id) return;
+  stick.active = false;
+  stick.id = null;
+  stick.mag = 0;
+  stick.nx = 0;
+  stick.ny = 0;
+}
+canvas.addEventListener('pointerdown', stickDown, { passive: false });
+canvas.addEventListener('pointermove', stickMove, { passive: false });
+canvas.addEventListener('pointerup', stickUp);
+canvas.addEventListener('pointercancel', stickUp);
+canvas.addEventListener('lostpointercapture', stickUp);
+canvas.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+window.addEventListener('pointerup', stickUp);
+pauseBtn.addEventListener('click', function(){ togglePause(); });
 
 /* ========================= 启动 ========================= */
 try {
