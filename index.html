@@ -1,0 +1,1851 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>肉鸽割草 · 波次生存</title>
+<style>
+:root{
+  --line:rgba(120,160,255,.18);
+  --text:#e8eefc;
+  --muted:#8ea0bd;
+  --accent:#5ab0ff;
+  --accent2:#63e6a8;
+  --danger:#ff5a7a;
+  --gold:#ffd166;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  background:radial-gradient(1200px 600px at 50% 0%,#1a2436 0%,#0b0f16 55%,#070a10 100%);
+  color:var(--text);
+  font-family:"Segoe UI","Microsoft YaHei","PingFang SC",system-ui,sans-serif;
+  display:flex;align-items:center;justify-content:center;
+  min-height:100vh;overflow:hidden;
+  user-select:none;
+}
+#game-wrap{
+  position:relative;
+  width:min(800px,96vw,calc(92vh * 4 / 3));
+  aspect-ratio:4/3;
+  border-radius:16px;
+  overflow:hidden;
+  box-shadow:0 30px 80px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.07),0 0 60px rgba(60,120,255,.12);
+}
+canvas{display:block;width:100%;height:100%;background:#12161f}
+.topbar{position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:60}
+.topbar button{
+  padding:5px 10px;font-size:12px;border-radius:8px;
+  background:rgba(20,26,38,.85);backdrop-filter:blur(4px);
+}
+button{
+  font-family:inherit;font-size:14px;color:var(--text);
+  background:#222b3c;border:1px solid rgba(140,170,230,.22);
+  border-radius:10px;padding:10px 16px;cursor:pointer;
+  transition:transform .15s,background .15s,border-color .15s;
+}
+button:hover:not(:disabled){background:#2b374d;border-color:rgba(140,170,230,.5);transform:translateY(-1px)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.primary{background:linear-gradient(180deg,#3e86ff,#2a63d8);border-color:#5a9bff;font-weight:700}
+button.primary:hover:not(:disabled){background:linear-gradient(180deg,#5a9bff,#3570e6)}
+button.danger{background:linear-gradient(180deg,#e04a68,#b62f4c);border-color:#ff6b86}
+button.ghost{background:transparent}
+#overlay{
+  position:absolute;inset:0;z-index:20;
+  display:flex;align-items:center;justify-content:center;
+  padding:16px;background:rgba(6,9,14,.8);
+  backdrop-filter:blur(7px);overflow-y:auto;
+}
+#overlay.hidden{display:none}
+.panel{
+  width:min(100%,700px);max-height:100%;overflow-y:auto;
+  background:linear-gradient(180deg,rgba(28,35,50,.97),rgba(16,20,29,.99));
+  border:1px solid var(--line);border-radius:18px;
+  padding:22px 24px;box-shadow:0 24px 60px rgba(0,0,0,.55);
+  animation:pop .18s ease-out;
+}
+@keyframes pop{from{transform:scale(.96);opacity:0}to{transform:scale(1);opacity:1}}
+.menu-panel{text-align:center}
+.menu-panel h1{
+  font-size:34px;letter-spacing:2px;margin-bottom:6px;
+  background:linear-gradient(90deg,#7fd6ff,#a98bff,#ff8fb3);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.sub{color:var(--muted);font-size:13px;line-height:1.6}
+.wallet{margin:14px 0 18px;font-size:15px;color:#cfd8ea}
+.wallet b{color:var(--gold);font-size:18px}
+.dot{margin:0 10px;color:#46536b}
+.btn-col{display:flex;flex-direction:column;gap:10px;max-width:300px;margin:0 auto 16px}
+.btn-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+.help{
+  margin-top:6px;padding:10px 14px;border-radius:10px;
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);
+  font-size:12px;color:var(--muted);line-height:1.9;
+}
+kbd{
+  display:inline-block;padding:1px 6px;margin:0 1px;border-radius:4px;
+  background:#2a3549;border:1px solid #3d4d68;border-bottom-width:2px;
+  font-family:inherit;font-size:11px;color:#dbe6ff;
+}
+.history{margin-top:14px;text-align:left}
+.history h3{font-size:13px;color:#aebbd2;margin-bottom:6px}
+.history-row{
+  display:flex;justify-content:space-between;gap:10px;
+  font-size:12px;color:var(--muted);padding:4px 6px;
+  border-bottom:1px solid rgba(255,255,255,.04);
+}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:14px 0 6px}
+.card{
+  display:flex;flex-direction:column;align-items:flex-start;gap:6px;
+  text-align:left;padding:16px;border-radius:14px;
+  background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.08);
+  cursor:pointer;transition:transform .18s,border-color .18s,box-shadow .18s;
+}
+.card:hover:not(:disabled){transform:translateY(-2px);border-color:var(--c,#5ab0ff);box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.card.locked{opacity:.55;cursor:not-allowed}
+.card-icon{
+  width:52px;height:52px;display:flex;align-items:center;justify-content:center;
+  font-size:28px;border-radius:14px;background:rgba(255,255,255,.05);
+  border:1px solid var(--c,#5ab0ff);color:var(--c,#5ab0ff);
+}
+.card-name{font-size:17px;font-weight:700}
+.card-desc{font-size:12px;color:var(--muted);line-height:1.5}
+.card-stats{font-size:12px;color:#b9c7de}
+.card-foot{margin-top:6px;font-size:12px;color:var(--accent)}
+.meta-section{margin-top:14px}
+.meta-section h3{font-size:14px;color:#c8d4e8;margin-bottom:8px}
+.meta-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.meta-card{
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);
+  border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:6px;
+}
+.meta-card .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.meta-name{font-weight:700;font-size:14px}
+.meta-desc{font-size:12px;color:var(--muted);line-height:1.5;flex:1}
+.meta-card button{width:100%;margin-top:4px;font-size:13px;padding:8px}
+.owned{color:var(--accent2);font-size:12px;font-weight:700;white-space:nowrap}
+.shop-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:14px}
+.shop-head h2{font-size:20px}
+.materials{font-size:20px;color:var(--accent2);white-space:nowrap}
+.offer-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.offer{
+  display:flex;flex-direction:column;gap:6px;text-align:left;
+  padding:12px;border-radius:12px;min-height:132px;
+  background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.08);
+}
+.offer:hover:not(:disabled){transform:translateY(-2px);border-color:rgba(120,170,255,.6)}
+.offer:disabled{opacity:.5;cursor:not-allowed}
+.offer-top{display:flex;justify-content:space-between;align-items:center}
+.offer-icon{font-size:22px}
+.tag{
+  font-size:10px;padding:2px 7px;border-radius:20px;
+  background:rgba(90,176,255,.16);color:#8cc7ff;border:1px solid rgba(90,176,255,.3);
+}
+.offer-name{font-weight:700;font-size:15px}
+.offer-desc{font-size:11.5px;color:var(--muted);line-height:1.5;flex:1}
+.offer-foot{font-size:12px;color:var(--gold);font-weight:700}
+.shop-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+.weapon-bar{
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:12px;
+  padding-top:10px;border-top:1px solid rgba(255,255,255,.06);font-size:12px;
+}
+.weapon-bar .label{color:var(--muted)}
+.wchip{padding:2px 8px;border-radius:20px;border:1px solid var(--c);color:var(--c);font-size:11px}
+.levelup-panel{text-align:center;max-width:640px}
+.levelup-panel h2{font-size:24px;margin-bottom:4px}
+.lv{color:var(--gold);font-size:16px;margin-left:8px}
+.choice-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px}
+.choice{
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  padding:16px 12px;border-radius:14px;cursor:pointer;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);
+}
+.choice:hover{border-color:#5ab0ff;background:rgba(90,176,255,.12);transform:translateY(-2px)}
+.choice-icon{font-size:28px}
+.choice-name{font-weight:700;font-size:15px}
+.choice-desc{font-size:12px;color:var(--muted)}
+.result-panel{text-align:center;max-width:520px}
+.result-badge{
+  display:inline-block;font-size:13px;font-weight:700;letter-spacing:3px;
+  padding:4px 14px;border-radius:20px;margin-bottom:10px;
+}
+.result-badge.win{background:rgba(99,230,168,.15);color:#63e6a8;border:1px solid rgba(99,230,168,.4)}
+.result-badge.lose{background:rgba(255,90,122,.12);color:#ff8fa3;border:1px solid rgba(255,90,122,.35)}
+.result-panel h2{font-size:20px;margin-bottom:14px}
+.result-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:14px 0}
+.result-grid>div{
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);
+  border-radius:10px;padding:10px;display:flex;justify-content:space-between;font-size:13px;
+}
+.result-grid span{color:var(--muted)}
+.earn{margin-top:8px;font-size:15px;color:#cfd8ea}
+.earn b{color:var(--gold);font-size:20px;margin-left:4px}
+.pause-panel{text-align:center;max-width:420px}
+#toast{
+  position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);
+  background:rgba(20,26,38,.96);border:1px solid rgba(140,170,230,.3);
+  padding:10px 18px;border-radius:12px;font-size:13px;opacity:0;
+  pointer-events:none;transition:.22s;z-index:100;
+  box-shadow:0 10px 30px rgba(0,0,0,.4);
+}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+@media (max-width:640px){
+  .menu-panel h1{font-size:26px}
+  .offer-grid{grid-template-columns:1fr}
+  .choice-grid{grid-template-columns:1fr}
+  .result-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <button id="btnSave" title="保存局外进度">保存进度</button>
+  <button id="btnLoad" title="读取本地存档">读取存档</button>
+  <button id="btnClear" title="清空本地存档">清空存档</button>
+</div>
+<div id="game-wrap">
+  <canvas id="game" width="800" height="600"></canvas>
+  <div id="overlay"></div>
+</div>
+<div id="toast"></div>
+<script>
+/* ============================================================
+   肉鸽割草 · 单文件版
+   玩法：土豆兄弟式 10 波 × 每波 30 秒，WASD/方向键移动，
+        武器自动瞄准并攻击最近的敌人；波间商店，局外解锁。
+   存档：localStorage（金币 / 解锁 / 永久强化 / 战绩）
+   替换贴图：修改下方 TEXTURES，把 null 换成图片地址或 base64。
+   ============================================================ */
+
+/* ========================= 基础 ========================= */
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const W = canvas.width;
+const H = canvas.height;
+const overlay = document.getElementById('overlay');
+
+const WAVE_TIME = 30;        // 每波时长（秒）
+const TOTAL_WAVES = 10;      // 总波数
+const MAX_WEAPONS = 6;       // 武器槽上限
+const HEAL_COST = 22;        // 商店治疗价格
+const SAVE_KEY = 'broLikeSaveData';
+
+/* ===================== 贴图配置区 =====================
+   想换成自己的图片：把对应 key 的 null 改成图片地址。
+   - 相对路径：'assets/hero.png'（需与 index.html 一起托管）
+   - 内嵌：'data:image/png;base64,....'（保持单文件）
+   建议正方形、透明背景，64×64 ~ 256×256。
+   也可以运行后在控制台调用：setTexture('player_hero','图片地址')
+   ===================================================== */
+const TEXTURES = {
+  player_hero: null,
+  player_berserker: null,
+  enemy_grunt: null,
+  enemy_runner: null,
+  enemy_tank: null,
+  enemy_shooter: null,
+  enemy_boss: null,
+  bullet_pistol: null,
+  bullet_smg: null,
+  bullet_shotgun: null,
+  bullet_laser: null
+};
+const images = {};
+function loadTexture(key, src){
+  if(!src) return;
+  const img = new Image();
+  img.onload = function(){ images[key] = img; };
+  img.src = src;
+}
+Object.keys(TEXTURES).forEach(function(k){ loadTexture(k, TEXTURES[k]); });
+function setTexture(key, src){ loadTexture(key, src); }
+
+/* ========================= 数据 ========================= */
+const CHARS = {
+  hero: {
+    name: '英雄', icon: '🛡️', color: '#63d2ff', color2: '#2f8fff',
+    desc: '均衡型：生命更厚，容错更高。',
+    hp: 100, speed: 212, damage: 0, atkSpeed: 0, crit: 0.05, armor: 0, pickup: 75, luck: 0
+  },
+  berserker: {
+    name: '狂战士', icon: '🔥', color: '#ff8a5c', color2: '#e63b2e',
+    desc: '输出型：伤害与攻速更高，但生命更少。',
+    hp: 80, speed: 232, damage: 0.2, atkSpeed: 0.1, crit: 0.06, armor: 0, pickup: 75, luck: 0
+  }
+};
+
+const WEAPONS = {
+  pistol: {
+    name: '手枪', short: '枪', icon: '🔫', color: '#ffd166', price: 20,
+    desc: '单发稳定射击', damage: 12, cooldown: 0.5, range: 330,
+    speed: 760, pellets: 1, spread: 0.03, pierce: 0, size: 5
+  },
+  smg: {
+    name: '冲锋枪', short: '冲', icon: '⚡', color: '#7bf1a8', price: 35,
+    desc: '极高射速，单发伤害低', damage: 6, cooldown: 0.16, range: 300,
+    speed: 850, pellets: 1, spread: 0.09, pierce: 0, size: 4
+  },
+  shotgun: {
+    name: '霰弹枪', short: '霰', icon: '💥', color: '#ff9f43', price: 45,
+    desc: '近距离五连扇形弹', damage: 7, cooldown: 0.95, range: 230,
+    speed: 680, pellets: 5, spread: 0.42, pierce: 0, size: 5
+  },
+  laser: {
+    name: '激光枪', short: '激', icon: '🔮', color: '#c58bff', price: 65,
+    desc: '高伤害穿透激光', damage: 22, cooldown: 0.8, range: 460,
+    speed: 1250, pellets: 1, spread: 0, pierce: 2, size: 7
+  }
+};
+
+const ITEMS = [
+  { id:'dmg',    name:'子弹带',   icon:'💥', desc:'伤害 +10%',           price:32, apply:function(p){ p.damage += 0.10; } },
+  { id:'as',     name:'瞄准镜',   icon:'🎯', desc:'攻击速度 +8%',        price:32, apply:function(p){ p.atkSpeed += 0.08; } },
+  { id:'hp',     name:'医疗包',   icon:'❤️', desc:'最大生命 +12，回复 12', price:30, apply:function(p){ p.maxHp += 12; p.hp = Math.min(p.maxHp, p.hp + 12); } },
+  { id:'speed',  name:'跑鞋',     icon:'👟', desc:'移动速度 +6%',        price:28, apply:function(p){ p.speed *= 1.06; } },
+  { id:'crit',   name:'幸运骰子', icon:'🎲', desc:'暴击率 +5%',           price:38, apply:function(p){ p.crit += 0.05; } },
+  { id:'armor',  name:'护甲片',   icon:'🛡️', desc:'护甲 +2',              price:42, apply:function(p){ p.armor += 2; } },
+  { id:'pickup', name:'磁铁',     icon:'🧲', desc:'拾取范围 +30',         price:20, apply:function(p){ p.pickup += 30; } },
+  { id:'luck',   name:'四叶草',   icon:'🍀', desc:'幸运 +10%（掉落率）',  price:24, apply:function(p){ p.luck += 0.10; } },
+  { id:'heal',   name:'急救喷雾', icon:'💊', desc:'立即回复 30 生命',     price:22, apply:function(p){ p.hp = Math.min(p.maxHp, p.hp + 30); } }
+];
+
+const LEVEL_STATS = [
+  { id:'dmg',   name:'力量祝福', icon:'⚔️', desc:'伤害 +10%',       apply:function(p){ p.damage += 0.10; } },
+  { id:'as',    name:'急速祝福', icon:'⚡', desc:'攻击速度 +8%',    apply:function(p){ p.atkSpeed += 0.08; } },
+  { id:'hp',    name:'生命祝福', icon:'❤️', desc:'最大生命 +8，回复 8', apply:function(p){ p.maxHp += 8; p.hp = Math.min(p.maxHp, p.hp + 8); } },
+  { id:'spd',   name:'迅捷祝福', icon:'👟', desc:'移动速度 +7%',    apply:function(p){ p.speed *= 1.07; } },
+  { id:'crit',  name:'精准祝福', icon:'🎯', desc:'暴击率 +5%',      apply:function(p){ p.crit += 0.05; } },
+  { id:'pick',  name:'磁力祝福', icon:'🧲', desc:'拾取范围 +25',    apply:function(p){ p.pickup += 25; } },
+  { id:'armor', name:'坚韧祝福', icon:'🛡️', desc:'护甲 +1',         apply:function(p){ p.armor += 1; } },
+  { id:'luck',  name:'幸运祝福', icon:'🍀', desc:'幸运 +8%',        apply:function(p){ p.luck += 0.08; } }
+];
+
+const ENEMIES = {
+  grunt:   { name:'撕裂者', hp:18,  speed:78,  dmg:7,  xp:1,  mat:1,  r:13, color:'#ff5a5a', behavior:'chase' },
+  runner:  { name:'突袭者', hp:10,  speed:150, dmg:5,  xp:1,  mat:1,  r:10, color:'#ffb020', behavior:'chase' },
+  tank:    { name:'重装',   hp:65,  speed:46,  dmg:14, xp:3,  mat:3,  r:20, color:'#a06bff', behavior:'chase' },
+  shooter: { name:'射手',   hp:16,  speed:58,  dmg:7,  xp:2,  mat:2,  r:12, color:'#35d0ff', behavior:'ranged' },
+  boss:    { name:'深渊巨兽', hp:1000, speed:62, dmg:22, xp:20, mat:15, r:38, color:'#ff36c9', behavior:'boss' }
+};
+
+const META_WEAPON_PRICES = { smg: 60, shotgun: 100, laser: 160 };
+const META_CHAR_PRICES = { berserker: 120 };
+const META_UPGRADES = [
+  { id:'maxHp',  name:'生命核心', desc:'每级初始最大生命 +10', max:5, price:60 },
+  { id:'damage', name:'火力核心', desc:'每级初始伤害 +5%',     max:5, price:60 },
+  { id:'speed',  name:'动力核心', desc:'每级初始移速 +5%',     max:5, price:50 }
+];
+
+/* ========================= 工具 ========================= */
+const TAU = Math.PI * 2;
+function rand(a, b){ return a + Math.random() * (b - a); }
+function randInt(a, b){ return Math.floor(rand(a, b + 1)); }
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+function clamp(v, a, b){ return v < a ? a : (v > b ? b : v); }
+
+/* ========================= 存档 ========================= */
+function defaultData(){
+  return {
+    gold: 0,
+    level: 1,
+    unlockWeapons: ['pistol'],
+    unlockChars: ['hero'],
+    runHistory: [],
+    metaUpgrades: { maxHp: 0, damage: 0, speed: 0 }
+  };
+}
+function normalizeData(d){
+  const base = defaultData();
+  if(!d || typeof d !== 'object') return base;
+  const out = Object.assign({}, base, d);
+  out.unlockWeapons = (Array.isArray(d.unlockWeapons) && d.unlockWeapons.length) ? d.unlockWeapons.slice() : ['pistol'];
+  if(out.unlockWeapons.indexOf('pistol') < 0) out.unlockWeapons.unshift('pistol');
+  out.unlockWeapons = out.unlockWeapons.filter(function(id){ return !!WEAPONS[id]; });
+  out.unlockChars = (Array.isArray(d.unlockChars) && d.unlockChars.length) ? d.unlockChars.slice() : ['hero'];
+  if(out.unlockChars.indexOf('hero') < 0) out.unlockChars.unshift('hero');
+  out.unlockChars = out.unlockChars.filter(function(id){ return !!CHARS[id]; });
+  out.runHistory = Array.isArray(d.runHistory) ? d.runHistory.slice(0, 20) : [];
+  out.metaUpgrades = Object.assign({ maxHp:0, damage:0, speed:0 }, d.metaUpgrades || {});
+  out.gold = Math.max(0, Number(d.gold) || 0);
+  out.level = Math.max(1, Number(d.level) || 1);
+  return out;
+}
+
+let gameData = defaultData();
+
+function persist(silent){
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(gameData));
+    return true;
+  } catch(e) {
+    if(!silent) toast('⚠️ 无法写入本地存档（浏览器限制）');
+    return false;
+  }
+}
+function saveGame(silent){
+  if(persist(silent) && !silent) toast('✅ 存档已保存');
+}
+function loadGame(){
+  let raw = null;
+  try { raw = localStorage.getItem(SAVE_KEY); } catch(e) {}
+  if(!raw){ toast('❌ 没有存档'); return; }
+  try {
+    gameData = normalizeData(JSON.parse(raw));
+    toast('✅ 读取成功');
+  } catch(e) {
+    toast('❌ 存档损坏');
+    return;
+  }
+  if(state === 'menu') showMenu();
+  else if(state === 'meta') openMeta();
+  else if(state === 'charselect') openCharSelect();
+}
+function clearSave(){
+  if(!confirm('确定清空存档吗？金币、解锁和通关记录都会丢失。')) return;
+  try { localStorage.removeItem(SAVE_KEY); } catch(e) {}
+  gameData = defaultData();
+  toast('🗑️ 存档已清空');
+  if(state === 'menu') showMenu();
+  else if(state === 'meta') openMeta();
+  else if(state === 'charselect') openCharSelect();
+}
+
+/* ========================= UI 基础 ========================= */
+let state = 'menu';   // menu | charselect | meta | running | paused | levelup | shop | gameover
+let run = null;
+let lastT = 0;
+let toastTimer = null;
+const keys = Object.create(null);
+
+function toast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 1800);
+}
+function hideOverlay(){
+  overlay.classList.add('hidden');
+  overlay.innerHTML = '';
+}
+function showOverlay(html){
+  overlay.innerHTML = html;
+  overlay.classList.remove('hidden');
+}
+
+function historyHtml(){
+  if(!gameData.runHistory.length){
+    return '<div class="history"><h3>最近战绩</h3><div class="history-row"><span>还没有战绩，去开一局吧。</span></div></div>';
+  }
+  const rows = gameData.runHistory.slice(0, 5).map(function(h){
+    const c = CHARS[h.char] || { name:'未知' };
+    const res = h.win
+      ? '<span style="color:#63e6a8">通关</span>'
+      : '<span style="color:#ff8fa3">第' + h.wave + '波</span>';
+    return '<div class="history-row"><span>' + h.date + ' · ' + c.name + '</span><span>' + res
+      + ' · 击杀 ' + h.kills + ' · +' + h.gold + '💰</span></div>';
+  }).join('');
+  return '<div class="history"><h3>最近战绩</h3>' + rows + '</div>';
+}
+
+/* ========================= 主菜单 ========================= */
+function showMenu(){
+  state = 'menu';
+  showOverlay(
+    '<div class="panel menu-panel">' +
+      '<h1>肉鸽割草</h1>' +
+      '<p class="sub">10 波生存 · 自动攻击最近敌人 · 波间商店</p>' +
+      '<div class="wallet">💰 金币 <b>' + gameData.gold + '</b><span class="dot">·</span>🏅 等级 <b>' + gameData.level + '</b></div>' +
+      '<div class="btn-col">' +
+        '<button class="primary" onclick="openCharSelect()">开始游戏</button>' +
+        '<button onclick="openMeta()">解锁商店</button>' +
+      '</div>' +
+      '<div class="help">' +
+        '<p>移动：<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 或 <kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> · 暂停：<kbd>Esc</kbd></p>' +
+        '<p>武器会自动瞄准并攻击最近的敌人；最终波 Boss 在射程内时优先锁定它。捡起绿色材料，在波次间购买武器与强化。</p>' +
+      '</div>' +
+      historyHtml() +
+    '</div>'
+  );
+}
+
+/* ========================= 角色选择 ========================= */
+function openCharSelect(){
+  state = 'charselect';
+  const cards = Object.keys(CHARS).map(function(id){
+    const c = CHARS[id];
+    const unlocked = gameData.unlockChars.indexOf(id) >= 0;
+    const action = unlocked ? 'onclick="startRun(\'' + id + '\')"' : 'disabled';
+    return '<button class="card ' + (unlocked ? '' : 'locked') + '" style="--c:' + c.color + '" ' + action + '>' +
+      '<div class="card-icon">' + c.icon + '</div>' +
+      '<div class="card-name">' + c.name + '</div>' +
+      '<div class="card-desc">' + c.desc + '</div>' +
+      '<div class="card-stats">❤️ ' + c.hp + ' · 👟 移速 ' + c.speed + ' · 💥 伤害 ' + Math.round(c.damage * 100) + '%</div>' +
+      '<div class="card-foot">' + (unlocked ? '点击出击' : '🔒 在解锁商店购买') + '</div>' +
+    '</button>';
+  }).join('');
+  showOverlay(
+    '<div class="panel">' +
+      '<div class="shop-head">' +
+        '<div><h2>选择角色</h2><p class="sub">10 波 · 每波 30 秒 · 自动攻击最近敌人</p></div>' +
+        '<div class="materials">💰 <b>' + gameData.gold + '</b></div>' +
+      '</div>' +
+      '<div class="card-grid">' + cards + '</div>' +
+      '<div class="btn-row"><button onclick="showMenu()">返回</button></div>' +
+    '</div>'
+  );
+}
+
+/* ========================= 解锁商店 ========================= */
+function openMeta(){
+  state = 'meta';
+  const gold = gameData.gold;
+
+  const weaponCards = ['smg', 'shotgun', 'laser'].map(function(id){
+    const w = WEAPONS[id];
+    const price = META_WEAPON_PRICES[id];
+    const owned = gameData.unlockWeapons.indexOf(id) >= 0;
+    return '<div class="meta-card">' +
+      '<div class="row"><span class="meta-name">' + w.icon + ' ' + w.name + '</span>' + (owned ? '<span class="owned">已解锁</span>' : '') + '</div>' +
+      '<div class="meta-desc">' + w.desc + '<br>伤害 ' + w.damage + ' · 冷却 ' + w.cooldown + 's · 射程 ' + w.range + '</div>' +
+      (owned ? '' : '<button onclick="buyMeta(\'weapon\',\'' + id + '\')" ' + (gold < price ? 'disabled' : '') + '>解锁 · 💰' + price + '</button>') +
+    '</div>';
+  }).join('');
+
+  const charCards = Object.keys(CHARS).filter(function(id){ return id !== 'hero'; }).map(function(id){
+    const c = CHARS[id];
+    const price = META_CHAR_PRICES[id] || 0;
+    const owned = gameData.unlockChars.indexOf(id) >= 0;
+    return '<div class="meta-card">' +
+      '<div class="row"><span class="meta-name">' + c.icon + ' ' + c.name + '</span>' + (owned ? '<span class="owned">已解锁</span>' : '') + '</div>' +
+      '<div class="meta-desc">' + c.desc + '<br>生命 ' + c.hp + ' · 移速 ' + c.speed + ' · 伤害 +' + Math.round(c.damage * 100) + '%</div>' +
+      (owned ? '' : '<button onclick="buyMeta(\'char\',\'' + id + '\')" ' + (gold < price ? 'disabled' : '') + '>解锁 · 💰' + price + '</button>') +
+    '</div>';
+  }).join('');
+
+  const upCards = META_UPGRADES.map(function(u){
+    const lv = gameData.metaUpgrades[u.id] || 0;
+    const maxed = lv >= u.max;
+    return '<div class="meta-card">' +
+      '<div class="row"><span class="meta-name">' + u.name + '</span><span class="owned">Lv.' + lv + '/' + u.max + '</span></div>' +
+      '<div class="meta-desc">' + u.desc + '</div>' +
+      (maxed ? '<button disabled>已满级</button>'
+             : '<button onclick="buyMeta(\'upgrade\',\'' + u.id + '\')" ' + (gold < u.price ? 'disabled' : '') + '>强化 · 💰' + u.price + '</button>') +
+    '</div>';
+  }).join('');
+
+  showOverlay(
+    '<div class="panel">' +
+      '<div class="shop-head">' +
+        '<div><h2>解锁商店</h2><p class="sub">用通关获得的金币永久解锁内容</p></div>' +
+        '<div class="materials">💰 <b>' + gold + '</b></div>' +
+      '</div>' +
+      '<div class="meta-section"><h3>⚔️ 武器</h3><div class="meta-grid">' + weaponCards + '</div></div>' +
+      '<div class="meta-section"><h3>🧍 角色</h3><div class="meta-grid">' + charCards + '</div></div>' +
+      '<div class="meta-section"><h3>🔧 永久强化</h3><div class="meta-grid">' + upCards + '</div></div>' +
+      '<div class="btn-row"><button onclick="showMenu()">返回</button></div>' +
+    '</div>'
+  );
+}
+
+function buyMeta(kind, id){
+  if(kind === 'weapon'){
+    if(gameData.unlockWeapons.indexOf(id) >= 0) return;
+    const price = META_WEAPON_PRICES[id];
+    if(gameData.gold < price){ toast('金币不足'); return; }
+    gameData.gold -= price;
+    gameData.unlockWeapons.push(id);
+    persist(true);
+    toast('🔓 已解锁 ' + WEAPONS[id].name);
+  } else if(kind === 'char'){
+    if(gameData.unlockChars.indexOf(id) >= 0) return;
+    const price = META_CHAR_PRICES[id] || 0;
+    if(gameData.gold < price){ toast('金币不足'); return; }
+    gameData.gold -= price;
+    gameData.unlockChars.push(id);
+    persist(true);
+    toast('🔓 已解锁 ' + CHARS[id].name);
+  } else {
+    const u = META_UPGRADES.find(function(x){ return x.id === id; });
+    if(!u) return;
+    const lv = gameData.metaUpgrades[id] || 0;
+    if(lv >= u.max) return;
+    if(gameData.gold < u.price){ toast('金币不足'); return; }
+    gameData.gold -= u.price;
+    gameData.metaUpgrades[id] = lv + 1;
+    persist(true);
+    toast('⬆️ ' + u.name + ' 提升到 Lv.' + (lv + 1));
+  }
+  openMeta();
+}
+
+/* ========================= 开局 ========================= */
+function startRun(charId){
+  const c = CHARS[charId];
+  if(!c || gameData.unlockChars.indexOf(charId) < 0){ toast('角色未解锁'); return; }
+  const up = gameData.metaUpgrades;
+  const maxHp = Math.round(c.hp + (up.maxHp || 0) * 10);
+  const player = {
+    x: W / 2, y: H / 2, r: 15,
+    hp: maxHp, maxHp: maxHp,
+    speed: c.speed * (1 + (up.speed || 0) * 0.05),
+    damage: c.damage + (up.damage || 0) * 0.05,
+    atkSpeed: c.atkSpeed,
+    crit: c.crit,
+    armor: c.armor,
+    pickup: c.pickup,
+    luck: c.luck,
+    level: 1,
+    xp: 0,
+    xpNext: 5,
+    weapons: [{ id: 'pistol', cd: 0 }],
+    invuln: 0,
+    aim: 0
+  };
+  run = {
+    charId: charId,
+    wave: 1,
+    timeLeft: WAVE_TIME,
+    kills: 0,
+    materials: 0,
+    totalMaterials: 0,
+    player: player,
+    enemies: [],
+    bullets: [],
+    ebullets: [],
+    pickups: [],
+    particles: [],
+    texts: [],
+    spawnTimer: 0.7,
+    uid: 1,
+    shake: 0,
+    boss: null,
+    shopOffers: [],
+    levelChoices: []
+  };
+  hideOverlay();
+  state = 'running';
+  startWave(1);
+}
+
+function startWave(w){
+  const r = run;
+  r.wave = w;
+  r.timeLeft = WAVE_TIME;
+  r.spawnTimer = 0.8;
+  r.enemies = [];
+  r.bullets = [];
+  r.ebullets = [];
+  r.pickups = [];
+  r.particles = [];
+  r.texts = [];
+  r.boss = null;
+
+  if(w === TOTAL_WAVES){
+    const boss = spawnEnemy('boss');
+    boss.x = W / 2;
+    boss.y = 90;
+    r.boss = boss;
+    r.shake = 12;
+    toast('⚠️ 最终波：击败深渊巨兽');
+  }
+  state = 'running';
+  hideOverlay();
+}
+
+/* ========================= 波次与商店 ========================= */
+function endWave(){
+  if(state !== 'running' || !run) return;
+  const r = run;
+  for(let i = 0; i < r.pickups.length; i++) collectPickup(r.pickups[i], true);
+  r.pickups = [];
+  r.enemies = [];
+  r.bullets = [];
+  r.ebullets = [];
+  r.particles = [];
+  state = 'shop';
+  rollShop();
+  showShop();
+}
+
+function offerPrice(base){
+  return Math.round(base * (1 + (run.wave - 1) * 0.07));
+}
+function rerollCost(){
+  return 6 + run.wave * 2;
+}
+function rollShop(){
+  const pool = [];
+  gameData.unlockWeapons.forEach(function(id){
+    if(WEAPONS[id]) pool.push({ kind:'weapon', id:id, price: offerPrice(WEAPONS[id].price) });
+  });
+  ITEMS.forEach(function(it){
+    pool.push({ kind:'item', id:it.id, price: offerPrice(it.price) });
+  });
+  const shuffled = shuffle(pool);
+  const seen = {};
+  const offers = [];
+  for(let i = 0; i < shuffled.length && offers.length < 4; i++){
+    const o = shuffled[i];
+    const key = o.kind + ':' + o.id;
+    if(seen[key]) continue;
+    seen[key] = true;
+    o.sold = false;
+    offers.push(o);
+  }
+  run.shopOffers = offers;
+}
+
+function offerHtml(o, idx){
+  const p = run.player;
+  let name, icon, desc, tag;
+  if(o.kind === 'weapon'){
+    const w = WEAPONS[o.id];
+    name = w.name;
+    icon = w.icon;
+    desc = w.desc + ' · 伤害 ' + w.damage + ' · 射速 ' + (1 / w.cooldown).toFixed(1) + '/s';
+    tag = '武器';
+  } else {
+    const it = ITEMS.find(function(x){ return x.id === o.id; });
+    name = it.name;
+    icon = it.icon;
+    desc = it.desc;
+    tag = '道具';
+  }
+  const full = o.kind === 'weapon' && p.weapons.length >= MAX_WEAPONS;
+  const afford = run.materials >= o.price;
+  const disabled = o.sold || !afford || full;
+  let foot;
+  if(o.sold) foot = '已购买';
+  else if(full) foot = '武器槽已满';
+  else if(afford) foot = '购买 · 💎' + o.price;
+  else foot = '材料不足 · 💎' + o.price;
+  return '<button class="offer" ' + (disabled ? 'disabled' : '') + ' onclick="buyOffer(' + idx + ')">' +
+    '<div class="offer-top"><span class="offer-icon">' + icon + '</span><span class="tag">' + tag + '</span></div>' +
+    '<div class="offer-name">' + name + '</div>' +
+    '<div class="offer-desc">' + desc + '</div>' +
+    '<div class="offer-foot">' + foot + '</div>' +
+  '</button>';
+}
+
+function showShop(){
+  if(!run) return;
+  state = 'shop';
+  const p = run.player;
+  const rc = rerollCost();
+  const weaponChips = p.weapons.map(function(slot){
+    const w = WEAPONS[slot.id];
+    return '<span class="wchip" style="--c:' + w.color + '">' + w.short + ' ' + w.name + '</span>';
+  }).join('');
+  const next = run.wave + 1;
+  showOverlay(
+    '<div class="panel">' +
+      '<div class="shop-head">' +
+        '<div><h2>第 ' + run.wave + ' 波结束</h2><p class="sub">' +
+          (next === TOTAL_WAVES ? '下一波是最终波，做好准备。' : '在下一波开始前购买武器与强化。') +
+        '</p></div>' +
+        '<div class="materials">💎 <b>' + run.materials + '</b></div>' +
+      '</div>' +
+      '<div class="offer-grid">' + run.shopOffers.map(offerHtml).join('') + '</div>' +
+      '<div class="shop-actions">' +
+        '<button onclick="rerollShop()" ' + (run.materials < rc ? 'disabled' : '') + '>🔄 刷新（' + rc + '）</button>' +
+        '<button onclick="buyHeal()" ' + (run.materials < HEAL_COST || p.hp >= p.maxHp ? 'disabled' : '') + '>❤️ 回复 25%（' + HEAL_COST + '）</button>' +
+        '<button class="primary" onclick="nextWave()">进入第 ' + next + ' 波 →</button>' +
+      '</div>' +
+      '<div class="weapon-bar"><span class="label">武器 ' + p.weapons.length + '/' + MAX_WEAPONS + '</span>' + weaponChips + '</div>' +
+    '</div>'
+  );
+}
+
+function buyOffer(idx){
+  if(!run || state !== 'shop') return;
+  const o = run.shopOffers[idx];
+  if(!o || o.sold) return;
+  if(run.materials < o.price){ toast('材料不足'); return; }
+  if(o.kind === 'weapon'){
+    if(run.player.weapons.length >= MAX_WEAPONS){ toast('武器槽已满'); return; }
+    run.materials -= o.price;
+    run.player.weapons.push({ id: o.id, cd: 0 });
+    o.sold = true;
+    toast('已购买 ' + WEAPONS[o.id].name);
+  } else {
+    run.materials -= o.price;
+    const it = ITEMS.find(function(x){ return x.id === o.id; });
+    it.apply(run.player);
+    o.sold = true;
+    toast('已购买 ' + it.name);
+  }
+  showShop();
+}
+
+function rerollShop(){
+  if(!run || state !== 'shop') return;
+  const cost = rerollCost();
+  if(run.materials < cost){ toast('材料不足'); return; }
+  run.materials -= cost;
+  rollShop();
+  showShop();
+}
+
+function buyHeal(){
+  if(!run || state !== 'shop') return;
+  const p = run.player;
+  if(p.hp >= p.maxHp){ toast('生命已满'); return; }
+  if(run.materials < HEAL_COST){ toast('材料不足'); return; }
+  run.materials -= HEAL_COST;
+  p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.25));
+  showShop();
+}
+
+function nextWave(){
+  if(!run || state !== 'shop') return;
+  startWave(run.wave + 1);
+}
+
+/* ========================= 升级 ========================= */
+function xpNeed(level){
+  return 5 + (level - 1) * 4;
+}
+function triggerLevelUp(){
+  if(!run || state !== 'running') return;
+  state = 'levelup';
+  run.levelChoices = shuffle(LEVEL_STATS).slice(0, 4);
+  showLevelUp();
+}
+function showLevelUp(){
+  const p = run.player;
+  showOverlay(
+    '<div class="panel levelup-panel">' +
+      '<h2>升级！<span class="lv">Lv.' + p.level + ' → ' + (p.level + 1) + '</span></h2>' +
+      '<p class="sub">选择一项强化</p>' +
+      '<div class="choice-grid">' +
+        run.levelChoices.map(function(c, i){
+          return '<button class="choice" onclick="chooseLevel(' + i + ')">' +
+            '<div class="choice-icon">' + c.icon + '</div>' +
+            '<div class="choice-name">' + c.name + '</div>' +
+            '<div class="choice-desc">' + c.desc + '</div>' +
+          '</button>';
+        }).join('') +
+      '</div>' +
+    '</div>'
+  );
+}
+function chooseLevel(i){
+  if(!run || state !== 'levelup') return;
+  const p = run.player;
+  const c = run.levelChoices[i];
+  if(!c) return;
+  c.apply(p);
+  p.xp -= p.xpNext;
+  p.level++;
+  p.xpNext = xpNeed(p.level);
+  if(p.xp >= p.xpNext){
+    state = 'running';
+    triggerLevelUp();
+    return;
+  }
+  state = 'running';
+  hideOverlay();
+}
+
+/* ========================= 暂停 / 结算 ========================= */
+function togglePause(){
+  if(state === 'running' && run){
+    state = 'paused';
+    showOverlay(
+      '<div class="panel pause-panel">' +
+        '<h2>已暂停</h2>' +
+        '<p class="sub">按 Esc 或点击继续</p>' +
+        '<div class="btn-row">' +
+          '<button class="primary" onclick="togglePause()">继续游戏</button>' +
+          '<button class="danger" onclick="abandonRun()">放弃本局</button>' +
+        '</div>' +
+      '</div>'
+    );
+  } else if(state === 'paused'){
+    state = 'running';
+    hideOverlay();
+  }
+}
+function abandonRun(){
+  if(run) endRun(false);
+}
+
+function endRun(win){
+  if(state === 'gameover' || !run) return;
+  const r = run;
+  const earned = Math.max(0, Math.round(r.totalMaterials * 0.6 + r.wave * 6 + (win ? 120 : 0)));
+  gameData.gold += earned;
+  gameData.level += 1;
+  gameData.runHistory.unshift({
+    win: win,
+    wave: r.wave,
+    kills: r.kills,
+    char: r.charId,
+    gold: earned,
+    date: new Date().toLocaleDateString('zh-CN')
+  });
+  gameData.runHistory = gameData.runHistory.slice(0, 20);
+  persist(true);
+
+  state = 'gameover';
+  const c = CHARS[r.charId] || { name:'未知' };
+  showOverlay(
+    '<div class="panel result-panel">' +
+      '<div class="result-badge ' + (win ? 'win' : 'lose') + '">' + (win ? '通关' : '阵亡') + '</div>' +
+      '<h2>' + (win ? '你击败了深渊巨兽！' : '你倒在了第 ' + r.wave + ' 波') + '</h2>' +
+      '<div class="result-grid">' +
+        '<div><span>角色</span><b>' + c.name + '</b></div>' +
+        '<div><span>波次</span><b>' + r.wave + ' / ' + TOTAL_WAVES + '</b></div>' +
+        '<div><span>击杀</span><b>' + r.kills + '</b></div>' +
+        '<div><span>收集材料</span><b>' + r.totalMaterials + '</b></div>' +
+      '</div>' +
+      '<div class="earn">💰 获得金币 <b>+' + earned + '</b></div>' +
+      '<div class="btn-row">' +
+        '<button class="primary" onclick="backToMenu()">返回主菜单</button>' +
+        '<button onclick="restartRun(\'' + r.charId + '\')">再来一局</button>' +
+      '</div>' +
+    '</div>'
+  );
+}
+function backToMenu(){
+  run = null;
+  showMenu();
+}
+function restartRun(charId){
+  run = null;
+  startRun(charId);
+}
+function victory(){
+  if(state === 'running') endRun(true);
+}
+
+/* ========================= 生成敌人 ========================= */
+function rollEnemyType(w){
+  const pool = [['grunt', 10]];
+  if(w >= 2) pool.push(['runner', 6]);
+  if(w >= 3) pool.push(['shooter', 4]);
+  if(w >= 5) pool.push(['tank', 3]);
+  let total = 0;
+  for(let i = 0; i < pool.length; i++) total += pool[i][1];
+  let n = Math.random() * total;
+  for(let i = 0; i < pool.length; i++){
+    n -= pool[i][1];
+    if(n <= 0) return pool[i][0];
+  }
+  return 'grunt';
+}
+
+function spawnEnemy(type, px, py){
+  const d = ENEMIES[type];
+  const r = run;
+  let x = px, y = py;
+  if(typeof x !== 'number' || typeof y !== 'number'){
+    const m = 30;
+    const side = randInt(0, 3);
+    if(side === 0){ x = rand(-m, W + m); y = -m; }
+    else if(side === 1){ x = W + m; y = rand(-m, H + m); }
+    else if(side === 2){ x = rand(-m, W + m); y = H + m; }
+    else { x = -m; y = rand(-m, H + m); }
+  }
+  const isBoss = type === 'boss';
+  const hpScale = isBoss ? 1 : (1 + 0.17 * (r.wave - 1));
+  const hp = Math.round(d.hp * hpScale);
+  const e = {
+    uid: r.uid++,
+    type: type,
+    x: x, y: y, r: d.r,
+    hp: hp, maxHp: hp,
+    speed: d.speed * (1 + 0.018 * (r.wave - 1)),
+    dmg: d.dmg * (1 + 0.06 * (r.wave - 1)),
+    xp: d.xp,
+    mat: d.mat,
+    color: d.color,
+    hitCd: 0,
+    shootCd: rand(1, 2.5),
+    flash: 0,
+    dead: false,
+    angle: 0,
+    wobble: rand(0, TAU)
+  };
+  r.enemies.push(e);
+  return e;
+}
+
+/* ========================= 战斗更新 ========================= */
+function nearestEnemy(x, y, range){
+  // 最终波：Boss 在射程内时优先锁定，避免被不断刷出的小怪挡枪导致无法通关
+  const boss = run.boss;
+  if(boss && !boss.dead){
+    const bdx = boss.x - x, bdy = boss.y - y;
+    if(bdx * bdx + bdy * bdy <= range * range) return boss;
+  }
+  let best = null;
+  let bestD = range * range;
+  for(let i = 0; i < run.enemies.length; i++){
+    const e = run.enemies[i];
+    if(e.dead) continue;
+    const dx = e.x - x, dy = e.y - y;
+    const d2 = dx * dx + dy * dy;
+    if(d2 <= bestD){ bestD = d2; best = e; }
+  }
+  return best;
+}
+
+function updateWeapons(dt){
+  const p = run.player;
+  for(let i = 0; i < p.weapons.length; i++){
+    const slot = p.weapons[i];
+    slot.cd -= dt;
+    if(slot.cd > 0) continue;
+    const def = WEAPONS[slot.id];
+    if(!def) continue;
+    const target = nearestEnemy(p.x, p.y, def.range);
+    if(!target) continue;
+    slot.cd = def.cooldown / (1 + p.atkSpeed);
+    const base = Math.atan2(target.y - p.y, target.x - p.x);
+    for(let j = 0; j < def.pellets; j++){
+      const a = base + (Math.random() - 0.5) * def.spread;
+      const crit = Math.random() < p.crit;
+      const dmg = Math.max(1, Math.round(def.damage * (1 + p.damage) * (crit ? 2 : 1)));
+      run.bullets.push({
+        x: p.x + Math.cos(a) * 18,
+        y: p.y + Math.sin(a) * 18,
+        vx: Math.cos(a) * def.speed,
+        vy: Math.sin(a) * def.speed,
+        dmg: dmg,
+        crit: crit,
+        pierce: def.pierce,
+        hits: [],
+        life: def.range / def.speed,
+        color: def.color,
+        size: def.size,
+        w: slot.id
+      });
+    }
+    for(let j = 0; j < 3; j++){
+      addParticle(p.x + Math.cos(base) * 20, p.y + Math.sin(base) * 20, def.color, 90);
+    }
+  }
+}
+
+function damageEnemy(e, dmg, crit){
+  if(e.dead) return;
+  e.hp -= dmg;
+  e.flash = 0.12;
+  addText(e.x, e.y - e.r - 8, String(dmg), crit ? '#ffd166' : '#ffffff', crit ? 18 : 14);
+  burst(e.x, e.y, crit ? '#ffd166' : e.color, crit ? 8 : 4, 130);
+  if(e.hp <= 0){
+    e.dead = true;
+    run.kills++;
+    run.player.xp += e.xp;
+    spawnPickup(e.x, e.y, 'mat', e.mat);
+    const healChance = 0.05 + run.player.luck * 0.1;
+    if(Math.random() < healChance) spawnPickup(e.x + rand(-8, 8), e.y + rand(-8, 8), 'heal', 10);
+    burst(e.x, e.y, e.color, 14, 230);
+    run.shake = Math.max(run.shake, 4);
+    if(e.type === 'boss') victory();
+  }
+}
+
+function updateBullets(dt){
+  const arr = run.bullets;
+  for(let i = arr.length - 1; i >= 0; i--){
+    const b = arr[i];
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
+    b.life -= dt;
+    if(b.life <= 0 || b.x < -50 || b.x > W + 50 || b.y < -50 || b.y > H + 50){
+      arr.splice(i, 1);
+      continue;
+    }
+    let removed = false;
+    for(let j = 0; j < run.enemies.length; j++){
+      const e = run.enemies[j];
+      if(e.dead) continue;
+      if(b.hits.indexOf(e.uid) >= 0) continue;
+      const dx = e.x - b.x, dy = e.y - b.y;
+      const rr = e.r + b.size;
+      if(dx * dx + dy * dy <= rr * rr){
+        damageEnemy(e, b.dmg, b.crit);
+        b.hits.push(e.uid);
+        if(b.pierce > 0){
+          b.pierce--;
+        } else {
+          arr.splice(i, 1);
+          removed = true;
+          break;
+        }
+      }
+    }
+    if(removed) continue;
+  }
+  if(run.enemies.some(function(e){ return e.dead; })){
+    run.enemies = run.enemies.filter(function(e){ return !e.dead; });
+  }
+}
+
+function fireEnemyBullet(e, target, speed, dmg, r, color){
+  const a = Math.atan2(target.y - e.y, target.x - e.x);
+  run.ebullets.push({
+    x: e.x + Math.cos(a) * (e.r + 4),
+    y: e.y + Math.sin(a) * (e.r + 4),
+    vx: Math.cos(a) * speed,
+    vy: Math.sin(a) * speed,
+    dmg: dmg,
+    life: 4,
+    r: r,
+    color: color
+  });
+}
+
+function updateEnemies(dt){
+  const p = run.player;
+  for(let i = 0; i < run.enemies.length; i++){
+    const e = run.enemies[i];
+    if(e.dead) continue;
+    e.flash = Math.max(0, e.flash - dt);
+    e.hitCd = Math.max(0, e.hitCd - dt);
+    e.wobble += dt * 4;
+
+    const dx = p.x - e.x, dy = p.y - e.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    e.angle = Math.atan2(dy, dx);
+    const def = ENEMIES[e.type];
+
+    if(def.behavior === 'ranged'){
+      if(dist > 235){ e.x += dx / dist * e.speed * dt; e.y += dy / dist * e.speed * dt; }
+      else if(dist < 165){ e.x -= dx / dist * e.speed * 0.85 * dt; e.y -= dy / dist * e.speed * 0.85 * dt; }
+      e.shootCd -= dt;
+      if(e.shootCd <= 0 && dist < 350){
+        e.shootCd = 2.2;
+        fireEnemyBullet(e, p, 250, e.dmg, 6, '#ff9b6b');
+      }
+    } else if(def.behavior === 'boss'){
+      if(dist > 120){
+        e.x += dx / dist * e.speed * dt;
+        e.y += dy / dist * e.speed * dt;
+      }
+      e.shootCd -= dt;
+      if(e.shootCd <= 0){
+        e.shootCd = 2.6;
+        const start = Math.atan2(dy, dx);
+        for(let k = 0; k < 10; k++){
+          const a = start + k * TAU / 10;
+          run.ebullets.push({
+            x: e.x, y: e.y,
+            vx: Math.cos(a) * 175,
+            vy: Math.sin(a) * 175,
+            dmg: e.dmg * 0.45,
+            life: 4.5,
+            r: 7,
+            color: '#ff36c9'
+          });
+        }
+        run.shake = Math.max(run.shake, 6);
+      }
+    } else {
+      e.x += dx / dist * e.speed * dt;
+      e.y += dy / dist * e.speed * dt;
+    }
+
+    if(dist < e.r + p.r){
+      if(e.hitCd <= 0){
+        e.hitCd = 0.7;
+        playerHit(e.dmg);
+      }
+      const overlap = e.r + p.r - dist;
+      if(overlap > 0){
+        e.x -= dx / dist * overlap * 0.5;
+        e.y -= dy / dist * overlap * 0.5;
+      }
+    }
+  }
+
+  // 敌人之间互相推开，避免堆叠
+  const arr = run.enemies;
+  for(let i = 0; i < arr.length; i++){
+    const a = arr[i];
+    if(a.dead) continue;
+    for(let j = i + 1; j < arr.length; j++){
+      const b = arr[j];
+      if(b.dead) continue;
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const d = Math.hypot(dx, dy) || 0.01;
+      const min = a.r + b.r;
+      if(d < min){
+        const push = (min - d) * 0.5;
+        const nx = dx / d, ny = dy / d;
+        a.x -= nx * push; a.y -= ny * push;
+        b.x += nx * push; b.y += ny * push;
+      }
+    }
+  }
+  for(let i = 0; i < arr.length; i++){
+    arr[i].x = clamp(arr[i].x, -60, W + 60);
+    arr[i].y = clamp(arr[i].y, -60, H + 60);
+  }
+  if(arr.some(function(e){ return e.dead; })){
+    run.enemies = arr.filter(function(e){ return !e.dead; });
+  }
+}
+
+function updateEnemyBullets(dt){
+  const p = run.player;
+  for(let i = run.ebullets.length - 1; i >= 0; i--){
+    const b = run.ebullets[i];
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
+    b.life -= dt;
+    if(b.life <= 0 || b.x < -40 || b.x > W + 40 || b.y < -40 || b.y > H + 40){
+      run.ebullets.splice(i, 1);
+      continue;
+    }
+    const dx = p.x - b.x, dy = p.y - b.y;
+    const rr = p.r + b.r;
+    if(dx * dx + dy * dy <= rr * rr){
+      playerHit(b.dmg);
+      run.ebullets.splice(i, 1);
+    }
+  }
+}
+
+function playerHit(dmg){
+  if(state !== 'running' || !run) return;
+  const p = run.player;
+  if(p.invuln > 0) return;
+  p.invuln = 0.35;
+  const reduced = Math.max(1, Math.round(dmg * (1 - p.armor / (p.armor + 10))));
+  p.hp -= reduced;
+  run.shake = Math.max(run.shake, 9);
+  addText(p.x, p.y - 28, '-' + reduced, '#ff6b6b', 16);
+  burst(p.x, p.y, '#ff4d6d', 8, 160);
+  if(p.hp <= 0){
+    p.hp = 0;
+    endRun(false);
+  }
+}
+
+/* ========================= 拾取与特效 ========================= */
+function spawnPickup(x, y, type, value){
+  run.pickups.push({
+    x: x, y: y,
+    type: type,
+    value: value,
+    vx: rand(-50, 50),
+    vy: rand(-50, 50),
+    life: rand(0, TAU)
+  });
+}
+function collectPickup(pk, silent){
+  const p = run.player;
+  if(pk.type === 'mat'){
+    run.materials += pk.value;
+    run.totalMaterials += pk.value;
+    if(!silent) addText(pk.x, pk.y - 10, '+' + pk.value, '#7bf1a8', 12);
+  } else {
+    p.hp = Math.min(p.maxHp, p.hp + pk.value);
+    if(!silent) addText(pk.x, pk.y - 10, '+' + pk.value + 'HP', '#ff8fa3', 12);
+  }
+}
+function updatePickups(dt){
+  const p = run.player;
+  for(let i = run.pickups.length - 1; i >= 0; i--){
+    const pk = run.pickups[i];
+    pk.life += dt;
+    const dx = p.x - pk.x, dy = p.y - pk.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    if(dist < p.pickup){
+      const pull = 420;
+      pk.x += dx / dist * pull * dt;
+      pk.y += dy / dist * pull * dt;
+    } else {
+      pk.x += pk.vx * dt;
+      pk.y += pk.vy * dt;
+      pk.vx *= 0.92;
+      pk.vy *= 0.92;
+    }
+    if(dist < 20){
+      collectPickup(pk, false);
+      run.pickups.splice(i, 1);
+    }
+  }
+}
+
+function addParticle(x, y, color, speed){
+  if(run.particles.length > 450) run.particles.shift();
+  const a = Math.random() * TAU;
+  const s = rand(speed * 0.3, speed);
+  run.particles.push({
+    x: x, y: y,
+    vx: Math.cos(a) * s,
+    vy: Math.sin(a) * s,
+    life: rand(0.25, 0.55),
+    max: 0.55,
+    size: rand(1.5, 3.5),
+    color: color
+  });
+}
+function burst(x, y, color, n, speed){
+  for(let i = 0; i < n; i++) addParticle(x, y, color, speed);
+}
+function addText(x, y, text, color, size){
+  if(run.texts.length > 80) run.texts.shift();
+  run.texts.push({ x:x, y:y, text:text, color:color, size:size || 14, life:0.8, max:0.8 });
+}
+function updateEffects(dt){
+  const r = run;
+  for(let i = r.particles.length - 1; i >= 0; i--){
+    const p = r.particles[i];
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vx *= 0.94;
+    p.vy *= 0.94;
+    p.life -= dt;
+    if(p.life <= 0) r.particles.splice(i, 1);
+  }
+  for(let i = r.texts.length - 1; i >= 0; i--){
+    const t = r.texts[i];
+    t.y -= 26 * dt;
+    t.life -= dt;
+    if(t.life <= 0) r.texts.splice(i, 1);
+  }
+}
+
+/* ========================= 主更新 ========================= */
+function update(dt){
+  const r = run;
+  const p = r.player;
+
+  if(r.wave < TOTAL_WAVES){
+    r.timeLeft -= dt;
+    if(r.timeLeft <= 0){
+      r.timeLeft = 0;
+      endWave();
+      return;
+    }
+  }
+
+  // 移动
+  let mx = 0, my = 0;
+  if(keys['w'] || keys['arrowup']) my--;
+  if(keys['s'] || keys['arrowdown']) my++;
+  if(keys['a'] || keys['arrowleft']) mx--;
+  if(keys['d'] || keys['arrowright']) mx++;
+  if(mx !== 0 || my !== 0){
+    const len = Math.hypot(mx, my);
+    mx /= len; my /= len;
+    p.x += mx * p.speed * dt;
+    p.y += my * p.speed * dt;
+    p.aim = Math.atan2(my, mx);
+  }
+  p.x = clamp(p.x, p.r, W - p.r);
+  p.y = clamp(p.y, p.r, H - p.r);
+  p.invuln = Math.max(0, p.invuln - dt);
+
+  // 刷怪
+  r.spawnTimer -= dt;
+  const cap = (r.wave === TOTAL_WAVES) ? 22 : (10 + r.wave * 4);
+  if(r.spawnTimer <= 0 && r.enemies.length < cap){
+    spawnEnemy(rollEnemyType(r.wave));
+    r.spawnTimer = Math.max(0.35, 1.15 - r.wave * 0.07);
+  }
+
+  updateWeapons(dt);
+  updateBullets(dt);
+  if(state !== 'running') return;
+
+  updateEnemies(dt);
+  if(state !== 'running') return;
+
+  updateEnemyBullets(dt);
+  if(state !== 'running') return;
+
+  updatePickups(dt);
+  updateEffects(dt);
+  r.shake = Math.max(0, r.shake - dt * 30);
+
+  if(p.xp >= p.xpNext) triggerLevelUp();
+}
+
+/* ========================= 绘制 ========================= */
+function roundRectPath(x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function drawArena(){
+  ctx.fillStyle = '#12161f';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.strokeStyle = 'rgba(90,120,180,0.08)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for(let x = 0; x <= W; x += 40){
+    ctx.moveTo(x + 0.5, 0);
+    ctx.lineTo(x + 0.5, H);
+  }
+  for(let y = 0; y <= H; y += 40){
+    ctx.moveTo(0, y + 0.5);
+    ctx.lineTo(W, y + 0.5);
+  }
+  ctx.stroke();
+
+  const g = ctx.createRadialGradient(W / 2, H / 2, 50, W / 2, H / 2, 430);
+  g.addColorStop(0, 'rgba(70,110,200,0.10)');
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.strokeStyle = 'rgba(100,150,255,0.25)';
+  ctx.strokeRect(0.5, 0.5, W - 1, H - 1);
+}
+
+function aimAngle(){
+  const p = run.player;
+  const t = nearestEnemy(p.x, p.y, 9999);
+  if(t) return Math.atan2(t.y - p.y, t.x - p.x);
+  return p.aim;
+}
+
+function drawPlayer(){
+  if(!run) return;
+  const p = run.player;
+  const c = CHARS[run.charId];
+  const img = images['player_' + run.charId];
+  const a = aimAngle();
+
+  ctx.save();
+  ctx.shadowColor = c.color;
+  ctx.shadowBlur = 18;
+  if(img){
+    ctx.drawImage(img, p.x - 22, p.y - 22, 44, 44);
+  } else {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, TAU);
+    ctx.fillStyle = c.color2;
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#ffffff';
+    ctx.globalAlpha = 0.85;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r * 0.48, 0, TAU);
+    ctx.fillStyle = c.color;
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(p.x + Math.cos(a) * (p.r + 7), p.y + Math.sin(a) * (p.r + 7));
+    ctx.lineTo(p.x + Math.cos(a + 2.5) * p.r, p.y + Math.sin(a + 2.5) * p.r);
+    ctx.lineTo(p.x + Math.cos(a - 2.5) * p.r, p.y + Math.sin(a - 2.5) * p.r);
+    ctx.closePath();
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+  }
+  ctx.restore();
+
+  if(p.invuln > 0){
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r + 5, 0, TAU);
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+}
+
+function drawEnemies(){
+  for(let i = 0; i < run.enemies.length; i++){
+    const e = run.enemies[i];
+    if(e.dead) continue;
+    const img = images['enemy_' + e.type];
+
+    ctx.save();
+    ctx.translate(e.x, e.y);
+    ctx.shadowColor = e.color;
+    ctx.shadowBlur = 12;
+
+    if(img){
+      ctx.drawImage(img, -e.r, -e.r, e.r * 2, e.r * 2);
+    } else if(e.type === 'runner'){
+      ctx.fillStyle = e.flash > 0 ? '#ffffff' : e.color;
+      ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+      ctx.lineWidth = 2;
+      const a = e.angle;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * e.r * 1.45, Math.sin(a) * e.r * 1.45);
+      ctx.lineTo(Math.cos(a + 2.5) * e.r, Math.sin(a + 2.5) * e.r);
+      ctx.lineTo(Math.cos(a - 2.5) * e.r, Math.sin(a - 2.5) * e.r);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else if(e.type === 'tank'){
+      ctx.fillStyle = e.flash > 0 ? '#ffffff' : e.color;
+      ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+      ctx.lineWidth = 2;
+      roundRectPath(-e.r, -e.r, e.r * 2, e.r * 2, 6);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(0,0,0,0.28)';
+      ctx.fillRect(-e.r * 0.45, -e.r * 0.45, e.r * 0.9, e.r * 0.9);
+    } else if(e.type === 'shooter'){
+      ctx.fillStyle = e.flash > 0 ? '#ffffff' : e.color;
+      ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, -e.r * 1.3);
+      ctx.lineTo(e.r * 1.15, 0);
+      ctx.lineTo(0, e.r * 1.3);
+      ctx.lineTo(-e.r * 1.15, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, e.r * 0.35, 0, TAU);
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.fill();
+    } else if(e.type === 'boss'){
+      const pulse = 1 + Math.sin(e.wobble) * 0.06;
+      ctx.fillStyle = e.flash > 0 ? '#ffffff' : e.color;
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(0, 0, e.r * pulse, 0, TAU);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, e.r * 0.55, 0, TAU);
+      ctx.fillStyle = 'rgba(255,255,255,0.22)';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0, 0, e.r * 0.22, 0, TAU);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+    } else {
+      const spikes = 9;
+      ctx.fillStyle = e.flash > 0 ? '#ffffff' : e.color;
+      ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for(let k = 0; k < spikes * 2; k++){
+        const rr = (k % 2 === 0) ? e.r : e.r * 0.68;
+        const ang = k * Math.PI / spikes + e.wobble * 0.25;
+        const px = Math.cos(ang) * rr;
+        const py = Math.sin(ang) * rr;
+        if(k === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, e.r * 0.3, 0, TAU);
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fill();
+    }
+    ctx.restore();
+
+    if(e.hp < e.maxHp){
+      const bw = e.r * 2.2;
+      const bh = 4;
+      const bx = e.x - bw / 2;
+      const by = e.y - e.r - 11;
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(bx, by, bw, bh);
+      ctx.fillStyle = (e.type === 'boss') ? '#ff36c9' : '#ff6b6b';
+      ctx.fillRect(bx, by, bw * Math.max(0, e.hp / e.maxHp), bh);
+    }
+  }
+}
+
+function drawPickups(){
+  for(let i = 0; i < run.pickups.length; i++){
+    const pk = run.pickups[i];
+    ctx.save();
+    ctx.translate(pk.x, pk.y);
+    if(pk.type === 'mat'){
+      ctx.rotate(pk.life * 2);
+      ctx.shadowColor = '#63e6a8';
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = '#63e6a8';
+      ctx.beginPath();
+      ctx.moveTo(0, -6);
+      ctx.lineTo(6, 0);
+      ctx.lineTo(0, 6);
+      ctx.lineTo(-6, 0);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.shadowColor = '#ff8fa3';
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = '#ff8fa3';
+      ctx.fillRect(-3, -8, 6, 16);
+      ctx.fillRect(-8, -3, 16, 6);
+    }
+    ctx.restore();
+  }
+}
+
+function drawBullets(){
+  for(let i = 0; i < run.bullets.length; i++){
+    const b = run.bullets[i];
+    const img = images['bullet_' + b.w];
+    ctx.save();
+    ctx.shadowColor = b.color;
+    ctx.shadowBlur = 10;
+    if(img){
+      ctx.drawImage(img, b.x - b.size * 2, b.y - b.size * 2, b.size * 4, b.size * 4);
+    } else if(b.w === 'laser'){
+      const a = Math.atan2(b.vy, b.vx);
+      ctx.translate(b.x, b.y);
+      ctx.rotate(a);
+      ctx.fillStyle = b.color;
+      ctx.fillRect(-12, -b.size / 2, 24, b.size);
+    } else {
+      ctx.fillStyle = b.color;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.size, 0, TAU);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+function drawEnemyBullets(){
+  for(let i = 0; i < run.ebullets.length; i++){
+    const b = run.ebullets[i];
+    ctx.save();
+    ctx.shadowColor = b.color;
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = b.color;
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawParticles(){
+  for(let i = 0; i < run.particles.length; i++){
+    const p = run.particles[i];
+    ctx.globalAlpha = Math.max(0, p.life / p.max);
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, TAU);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawTexts(){
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineJoin = 'round';
+  for(let i = 0; i < run.texts.length; i++){
+    const t = run.texts[i];
+    ctx.globalAlpha = Math.min(1, (t.life / t.max) * 1.6);
+    ctx.font = 'bold ' + t.size + 'px "Microsoft YaHei",sans-serif';
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.lineWidth = 3;
+    ctx.strokeText(t.text, t.x, t.y);
+    ctx.fillStyle = t.color;
+    ctx.fillText(t.text, t.x, t.y);
+  }
+  ctx.globalAlpha = 1;
+  ctx.textBaseline = 'alphabetic';
+}
+
+function drawBossBar(){
+  const boss = run.boss;
+  if(!boss || boss.dead) return;
+  const bw = 380;
+  const bh = 12;
+  const bx = (W - bw) / 2;
+  const by = 78;
+  ctx.fillStyle = 'rgba(10,14,22,0.8)';
+  roundRectPath(bx, by, bw, bh, 6);
+  ctx.fill();
+  ctx.save();
+  roundRectPath(bx, by, bw, bh, 6);
+  ctx.clip();
+  ctx.fillStyle = '#ff36c9';
+  ctx.fillRect(bx, by, bw * Math.max(0, boss.hp / boss.maxHp), bh);
+  ctx.restore();
+  ctx.fillStyle = '#ffb3e9';
+  ctx.font = '11px "Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText('深渊巨兽', W / 2, by - 6);
+}
+
+function drawHud(){
+  if(!run) return;
+  const p = run.player;
+
+  // 生命条
+  const hx = 16, hy = 14, hw = 250, hh = 20;
+  ctx.fillStyle = 'rgba(10,14,22,0.72)';
+  roundRectPath(hx, hy, hw, hh, 10);
+  ctx.fill();
+  const ratio = Math.max(0, p.hp / p.maxHp);
+  const grad = ctx.createLinearGradient(hx, 0, hx + hw, 0);
+  grad.addColorStop(0, '#ff4d6d');
+  grad.addColorStop(1, '#ff8f6b');
+  ctx.save();
+  roundRectPath(hx, hy, hw, hh, 10);
+  ctx.clip();
+  ctx.fillStyle = grad;
+  ctx.fillRect(hx, hy, hw * ratio, hh);
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 1;
+  roundRectPath(hx, hy, hw, hh, 10);
+  ctx.stroke();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 13px "Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('❤ ' + Math.ceil(p.hp) + ' / ' + p.maxHp, hx + 10, hy + hh / 2 + 1);
+
+  // 波次与时间
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#dfe7f5';
+  ctx.font = 'bold 18px "Microsoft YaHei",sans-serif';
+  ctx.fillText('第 ' + run.wave + ' / ' + TOTAL_WAVES + ' 波', W / 2, 24);
+  ctx.font = '13px "Microsoft YaHei",sans-serif';
+  ctx.fillStyle = '#8ea0bd';
+  const timeTxt = (run.wave === TOTAL_WAVES) ? '击败巨兽即可通关' : (Math.ceil(run.timeLeft) + ' 秒后结束');
+  ctx.fillText(timeTxt, W / 2, 46);
+
+  // 材料
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#9ef0b6';
+  ctx.font = 'bold 20px "Microsoft YaHei",sans-serif';
+  ctx.fillText('💎 ' + run.materials, W - 16, 24);
+
+  drawBossBar();
+
+  // 经验条
+  const xw = W - 32, xh = 8, xx = 16, xy = H - 14;
+  ctx.fillStyle = 'rgba(10,14,22,0.8)';
+  roundRectPath(xx, xy, xw, xh, 4);
+  ctx.fill();
+  const xpRatio = Math.min(1, p.xp / p.xpNext);
+  if(xpRatio > 0){
+    ctx.fillStyle = '#5ab0ff';
+    roundRectPath(xx, xy, xw * xpRatio, xh, 4);
+    ctx.fill();
+  }
+  ctx.fillStyle = '#cfe0ff';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = 'bold 11px "Microsoft YaHei",sans-serif';
+  ctx.fillText('Lv.' + p.level, xx + 2, xy - 6);
+
+  // 武器槽
+  let cx = 16;
+  const cy = H - 46;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  for(let i = 0; i < p.weapons.length; i++){
+    const w = WEAPONS[p.weapons[i].id];
+    const label = w.short + ' ' + w.name;
+    ctx.font = 'bold 11px "Microsoft YaHei",sans-serif';
+    const tw = ctx.measureText(label).width + 16;
+    ctx.fillStyle = 'rgba(10,14,22,0.85)';
+    roundRectPath(cx, cy - 10, tw, 20, 5);
+    ctx.fill();
+    ctx.strokeStyle = w.color;
+    ctx.lineWidth = 1.5;
+    roundRectPath(cx, cy - 10, tw, 20, 5);
+    ctx.stroke();
+    ctx.fillStyle = w.color;
+    ctx.fillText(label, cx + 8, cy + 1);
+    cx += tw + 6;
+  }
+  ctx.textBaseline = 'alphabetic';
+}
+
+function draw(){
+  ctx.fillStyle = '#0b0f16';
+  ctx.fillRect(0, 0, W, H);
+
+  const shaking = run && state === 'running' && run.shake > 0;
+  ctx.save();
+  if(shaking){
+    ctx.translate(rand(-run.shake, run.shake) * 0.45, rand(-run.shake, run.shake) * 0.45);
+  }
+
+  drawArena();
+
+  if(run){
+    drawPickups();
+    drawEnemies();
+    drawPlayer();
+    drawBullets();
+    drawEnemyBullets();
+    drawParticles();
+    drawTexts();
+    if(state === 'running' || state === 'paused' || state === 'levelup' || state === 'shop'){
+      drawHud();
+    }
+  }
+
+  ctx.restore();
+}
+
+/* ========================= 输入与主循环 ========================= */
+function loop(now){
+  if(!lastT) lastT = now;
+  const dt = Math.min(0.05, Math.max(0, (now - lastT) / 1000));
+  lastT = now;
+
+  if(state === 'running' && run) update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+window.addEventListener('keydown', function(e){
+  const k = e.key.toLowerCase();
+  if(k === 'arrowup' || k === 'arrowdown' || k === 'arrowleft' || k === 'arrowright' || k === ' '){
+    e.preventDefault();
+  }
+  keys[k] = true;
+  if(k === 'escape') togglePause();
+});
+window.addEventListener('keyup', function(e){
+  keys[e.key.toLowerCase()] = false;
+});
+window.addEventListener('blur', function(){
+  for(const k in keys) keys[k] = false;
+  if(state === 'running') togglePause();
+});
+
+/* ========================= 启动 ========================= */
+try {
+  const raw = localStorage.getItem(SAVE_KEY);
+  if(raw) gameData = normalizeData(JSON.parse(raw));
+} catch(e) { /* 忽略损坏存档 */ }
+
+document.getElementById('btnSave').addEventListener('click', function(){ saveGame(); });
+document.getElementById('btnLoad').addEventListener('click', function(){ loadGame(); });
+document.getElementById('btnClear').addEventListener('click', function(){ clearSave(); });
+
+showMenu();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
